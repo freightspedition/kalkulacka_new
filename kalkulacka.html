@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+  <meta charset="UTF-8" />
+  <title>Kalkulačka přepravy</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 20px;
+      max-width: 600px;
+      margin: auto;
+    }
+    label {
+      display: block;
+      margin-top: 10px;
+    }
+    #map {
+      height: 400px;
+      width: 100%;
+      margin-top: 20px;
+    }
+    .result {
+      margin-top: 20px;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+
+<h2>Kalkulačka přepravy</h2>
+
+<form id="calculator">
+  <label>Odkud: <input type="text" id="from" required></label>
+  <label>Kam: <input type="text" id="to" required></label>
+  <label>Počet palet: <input type="number" id="palets" min="1" value="1" required></label>
+  <label>Hmotnost (kg): <input type="number" id="weight" min="0" required></label>
+  <label><input type="checkbox" id="adr"> ADR</label>
+  <label><input type="checkbox" id="express"> Expresní zásilka</label>
+  <button type="submit">Spočítat cenu</button>
+</form>
+
+<div class="result" id="price"></div>
+<div id="map"></div>
+
+<script>
+  function initMap() {
+    const map = new google.maps.Map(document.getElementById("map"), {
+      zoom: 6,
+      center: { lat: 49.8175, lng: 15.4730 },
+    });
+    window.map = map;
+  }
+
+  document.getElementById("calculator").addEventListener("submit", function(e) {
+    e.preventDefault();
+
+    const from = document.getElementById("from").value;
+    const to = document.getElementById("to").value;
+    const palets = parseInt(document.getElementById("palets").value);
+    const adr = document.getElementById("adr").checked;
+    const express = document.getElementById("express").checked;
+
+    const service = new google.maps.DistanceMatrixService();
+    service.getDistanceMatrix({
+      origins: [from],
+      destinations: [to],
+      travelMode: 'DRIVING',
+      unitSystem: google.maps.UnitSystem.METRIC,
+    }, function(response, status) {
+      if (status !== 'OK') {
+        alert('Chyba při výpočtu vzdálenosti: ' + status);
+      } else {
+        const distanceText = response.rows[0].elements[0].distance.text;
+        const distanceKm = parseFloat(distanceText.replace(',', '.').split(' ')[0]);
+
+        let basePrice = distanceKm * 8 * palets;
+        if (palets > 1) {
+          basePrice += (palets - 1) * 1100;
+        }
+        if (adr) basePrice *= 1.2;
+        if (express) basePrice *= 1.4;
+
+        document.getElementById("price").innerText =
+          `Vzdálenost: ${distanceText}, Cena: ${basePrice.toFixed(2)} Kč`;
+
+        const directionsService = new google.maps.DirectionsService();
+        const directionsRenderer = new google.maps.DirectionsRenderer();
+        directionsRenderer.setMap(window.map);
+        directionsService.route({
+          origin: from,
+          destination: to,
+          travelMode: 'DRIVING',
+        }, function(result, status) {
+          if (status === 'OK') {
+            directionsRenderer.setDirections(result);
+          }
+        });
+      }
+    });
+  });
+</script>
+
+<script async defer
+  src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDqYMl5b6Q0rhdhs4OH-s4O-9IRO_L_Kko&callback=initMap">
+</script>
+
+</body>
+</html>
